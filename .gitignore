@@ -100,3 +100,5 @@ ENV/
 
 # Rope project settings
 .ropeproject
+# start.sh runtime files
+.habitat-run/
