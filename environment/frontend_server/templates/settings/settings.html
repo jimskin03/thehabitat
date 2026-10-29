@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="width:55%; min-width:300px; margin: 0 auto; padding-top:4.5em">
+	<h2 style="margin-bottom:0.2em">Settings</h2>
+	<hr style="border-color:#999999">
+
+	{% if message %}
+	<div class="alert alert-success" role="alert">{{ message }}</div>
+	{% endif %}
+	{% if error %}
+	<div class="alert alert-danger" role="alert">{{ error }}</div>
+	{% endif %}
+
+	<h3 style="font-size:1.5em">OpenAI API key</h3>
+	<p>Current key: <strong>{{ key_status }}</strong></p>
+
+	<form method="post" action="{% url 'settings' %}" autocomplete="off">
+		{% csrf_token %}
+		<div class="form-group">
+			<label for="api_key">New API key</label>
+			<input type="password" class="form-control" id="api_key" name="api_key"
+			       placeholder="sk-..." autocomplete="new-password" required>
+		</div>
+		<button type="submit" class="btn btn-default"><strong>Save</strong></button>
+	</form>
+
+	<p style="margin-top:1.5em; color:#666666">
+		The key is saved to <code>reverie/backend_server/utils.py</code>, the file reverie reads it from.
+		Restart <code>reverie.py</code> after saving. The full key is never shown here.
+	</p>
+</div>
+{% endblock content %}
