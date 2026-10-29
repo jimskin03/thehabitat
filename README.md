@@ -8,6 +8,77 @@
 
 This repository accompanies our research paper titled "[Generative Agents: Interactive Simulacra of Human Behavior](https://arxiv.org/abs/2304.03442)." It contains our core simulation module for  generative agents—computational agents that simulate believable human behaviors—and their game environment. Below, we document the steps for setting up the simulation environment on your local machine and for replaying the simulation as a demo animation.
 
+## Start the app and connect
+
+These steps are for an existing installation with dependencies installed in `environment/frontend_server/.venv`. If you are setting up a new installation, follow **Setting Up the Environment** below first. The example checkout is `/home/jimskin03/Projects/thehabitat`; use your own checkout path if different.
+
+### Open the app on the server computer
+
+1. Open a terminal on the computer that has the project installed.
+2. Go to the folder containing `manage.py`:
+
+   ```bash
+   cd /home/jimskin03/Projects/thehabitat/environment/frontend_server
+   ```
+
+3. Start the server using the Python executable in the project's virtual environment:
+
+   ```bash
+   .venv/bin/python manage.py runserver
+   ```
+
+4. Leave that terminal open. On the **same computer**, open [http://localhost:8000/](http://localhost:8000/) in your browser.
+5. To stop the server, press **Ctrl+C** in its terminal.
+
+### Open the app from another device over Tailscale
+
+`localhost` always refers to the device running your browser. To open the app from another device, use the server computer's Tailscale IP address and make Django listen on that address.
+
+1. Connect both devices to the same Tailscale network.
+2. In a terminal on the **server computer**, find its Tailscale IPv4 address:
+
+   ```bash
+   tailscale ip -4
+   ```
+
+   On the installation used here, the address is `100.96.46.109`. Replace this address in the commands and browser URL below if your server reports a different one.
+
+3. If the server is already running, press **Ctrl+C** in its terminal to stop it.
+4. Start it again, listening on its Tailscale address:
+
+   ```bash
+   cd /home/jimskin03/Projects/thehabitat/environment/frontend_server
+   .venv/bin/python manage.py runserver 100.96.46.109:8000
+   ```
+
+5. Leave the terminal open. On the **other device**, open [http://100.96.46.109:8000/](http://100.96.46.109:8000/). Use `http://` and include `:8000`.
+
+When bound to the Tailscale address, use that address in browsers on either computer. The default `runserver` command listens on `127.0.0.1`, which only accepts connections from the server computer itself.
+
+### Enter an API key in the Habitat interface
+
+In installations with the Habitat single-page interface, open the root URL above, click **Settings** in the top right, paste your key into **API key**, and click **Save**. Set **API base** and **Model** to match your provider. If a key is already saved, you do not need to enter it again. Click **Play** below the map to watch the simulation.
+
+Without a key, this interface plays the saved Smallville template. With a saved key, it requests new simulation steps from the configured model.
+
+The Habitat interface changes are currently local to the installation described here and are not included in this README update. A checkout showing the original landing page uses the **Running a Simulation** instructions below, including the separate simulation server and `utils.py` API key configuration.
+
+### Troubleshooting startup and connections
+
+| Problem | What to do |
+| --- | --- |
+| `python: command not found` | Use `.venv/bin/python` from `environment/frontend_server`, as shown above. You do not need a system-wide `python` command. |
+| `.ven/bin/python: No such file or directory` | The folder is **`.venv`**, with a final `v`. Run `.venv/bin/python manage.py runserver`. |
+| `.venv/bin/python: No such file or directory` | Check that you are in `environment/frontend_server` and that `.venv` exists there. A virtual environment is created locally and is not supplied by a Git clone. If it is missing or its Python executable no longer exists, create/recreate it with a Python version compatible with the project's requirements, then install dependencies as described below. |
+| `can't open file 'manage.py'` | Run the `cd` command above first; `manage.py` is in `environment/frontend_server`. |
+| `No module named django` | Install the project dependencies into the environment used to run the server. From `environment/frontend_server`, use `.venv/bin/python -m pip install -r requirements.txt`. See the Python version note below. |
+| `That port is already in use` | Another server is already using port 8000. If it is this app, open its browser URL. To change its listening address for Tailscale, stop the existing instance in its terminal with **Ctrl+C** before restarting it. |
+| The page works on the server but not on another device | Restart with the server's Tailscale IP, as shown above. On the other device, use that IP in the browser, not `localhost` or `127.0.0.1`. |
+| The Tailscale URL still times out | Confirm both devices are connected to Tailscale and the server terminal is still running. On the server, use `ss -ltnp` to check that port 8000 is listening on its Tailscale IP. Check that host firewall rules and Tailscale access rules allow the client to reach the server on TCP port 8000. |
+| `Cannot assign requested address` | Run `tailscale ip -4` on the server again and use the address it reports. Make sure Tailscale is connected before starting Django on that address. |
+| `DisallowedHost` or `Invalid HTTP_HOST header` | In `environment/frontend_server/frontend_server/settings/local.py`, ensure `ALLOWED_HOSTS` allows the server's Tailscale IP. For example, add `"100.96.46.109"` to the list, without `http://` or `:8000`, and restart the server. |
+| No **Settings** button | Open the root URL `/`. If it still shows the original landing page, your checkout does not include the Habitat interface; use the original simulation instructions below. |
+
 ## <img src="https://joonsungpark.s3.amazonaws.com:443/static/assets/characters/profile/Isabella_Rodriguez.png" alt="Generative Isabella">   Setting Up the Environment 
 To set up your environment, you will need to generate a `utils.py` file that contains your OpenAI API key and download the necessary packages.
 
@@ -58,6 +129,22 @@ Replace `<Your OpenAI API>` with your OpenAI API key, and `<name>` with your nam
  
 ### Step 2. Install requirements.txt
 Install everything listed in the `requirements.txt` file (I strongly recommend first setting up a virtualenv as usual). A note on Python version: we tested our environment on Python 3.9.12. 
+
+To create the `.venv` used by the startup commands above, run these commands from the repository root with Python 3.9 installed:
+
+```bash
+cd environment/frontend_server
+python3.9 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Skip creating the environment if `.venv` already exists and works. The pinned dependencies are old; installing them with a newer system Python can fail. When following the original two-server instructions below, activate this virtual environment in each terminal before running the `python` commands:
+
+```bash
+source /home/jimskin03/Projects/thehabitat/environment/frontend_server/.venv/bin/activate
+```
+
+Use your own checkout path if different. Activation makes `python` refer to the environment's executable even when the system has only `python3`.
 
 ## <img src="https://joonsungpark.s3.amazonaws.com:443/static/assets/characters/profile/Klaus_Mueller.png" alt="Generative Klaus">   Running a Simulation 
 To run a new simulation, you will need to concurrently start two servers: the environment server and the agent simulation server.
