@@ -1,0 +1,67 @@
+# Copy to utils.py and replace the key. utils.py is gitignored.
+# The reverie prompt can switch APIs while the server is running:
+#   api list
+#   api openai
+#   api ollama
+#   api mode chat
+#   api model gpt-4o-mini
+#   api add <name> <base_url> <model> [api_key]
+
+openai_api_key = "<Your OpenAI API>"
+key_owner = "<Name>"
+
+maze_assets_loc = "../../environment/frontend_server/static_dirs/assets"
+env_matrix = f"{maze_assets_loc}/the_ville/matrix"
+env_visuals = f"{maze_assets_loc}/the_ville/visuals"
+
+fs_storage = "../../environment/frontend_server/storage"
+fs_temp_storage = "../../environment/frontend_server/temp_storage"
+
+collision_block_id = "32125"
+
+debug = True
+
+# Optional. Delete this block to keep the original single completion API,
+# selected from openai_api_key above. With only that key, start reverie and
+# run: api mode chat
+#      api model gpt-4o-mini
+apis = {
+  "openai": {
+    "kind": "openai",
+    "mode": "chat",
+    "api_key": openai_api_key,
+    "api_base": "https://api.openai.com/v1",
+    "model": "gpt-4o-mini",
+    "embedding_model": "text-embedding-ada-002",
+  },
+  # Second key for the same endpoint. `api backup` swaps to it mid-run.
+  "backup": {
+    "kind": "openai",
+    "mode": "chat",
+    "api_key": "<second OpenAI API key>",
+    "api_base": "https://api.openai.com/v1",
+    "model": "gpt-4o-mini",
+    "embedding_model": "text-embedding-ada-002",
+  },
+  # OpenAI-compatible local server. base URL includes /v1.
+  "ollama": {
+    "kind": "openai",
+    "mode": "chat",
+    "api_key": "ollama",
+    "api_base": "http://127.0.0.1:11434/v1",
+    "model": "llama3.1",
+    "embedding_model": "nomic-embed-text",
+    "embedding_api": "openai",
+  },
+  # Azure deployment name goes in "model". kind azure sends it as engine.
+  "azure": {
+    "kind": "azure",
+    "mode": "chat",
+    "api_key": "<Azure OpenAI key>",
+    "api_base": "https://<resource>.openai.azure.com",
+    "api_version": "2023-05-15",
+    "model": "<deployment name>",
+    "embedding_model": "<embedding deployment>",
+  },
+}
+active_api = "openai"

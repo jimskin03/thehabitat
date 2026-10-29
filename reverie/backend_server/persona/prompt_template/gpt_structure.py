@@ -2,28 +2,25 @@
 Author: Joon Sung Park (joonspk@stanford.edu)
 
 File: gpt_structure.py
-Description: Wrapper functions for calling OpenAI APIs.
+Description: Wrapper functions for calling the active LLM API.
+The active endpoint is chosen at call time. See api_router.py.
 """
 import json
 import random
-import openai
-import time 
+import time
+import traceback
 
 from utils import *
+from persona.prompt_template import api_router as _api_router
 
-openai.api_key = openai_api_key
+_api_router.bootstrap()
 
 def temp_sleep(seconds=0.1):
   time.sleep(seconds)
 
 def ChatGPT_single_request(prompt): 
   temp_sleep()
-
-  completion = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo", 
-    messages=[{"role": "user", "content": prompt}]
-  )
-  return completion["choices"][0]["message"]["content"]
+  return _api_router.generate(prompt, role="chat")
 
 
 # ============================================================================
@@ -44,15 +41,12 @@ def GPT4_request(prompt):
   """
   temp_sleep()
 
-  try: 
-    completion = openai.ChatCompletion.create(
-    model="gpt-4", 
-    messages=[{"role": "user", "content": prompt}]
-    )
-    return completion["choices"][0]["message"]["content"]
-  
-  except: 
-    print ("ChatGPT ERROR")
+  try:
+    return _api_router.generate(prompt, role="strong")
+
+  except:
+    print ("ChatGPT ERROR (%s)" % _api_router.active_label())
+    traceback.print_exc()
     return "ChatGPT ERROR"
 
 
@@ -69,15 +63,12 @@ def ChatGPT_request(prompt):
     a str of GPT-3's response. 
   """
   # temp_sleep()
-  try: 
-    completion = openai.ChatCompletion.create(
-    model="gpt-3.5-turbo", 
-    messages=[{"role": "user", "content": prompt}]
-    )
-    return completion["choices"][0]["message"]["content"]
-  
-  except: 
-    print ("ChatGPT ERROR")
+  try:
+    return _api_router.generate(prompt, role="chat")
+
+  except:
+    print ("ChatGPT ERROR (%s)" % _api_router.active_label())
+    traceback.print_exc()
     return "ChatGPT ERROR"
 
 
@@ -207,20 +198,14 @@ def GPT_request(prompt, gpt_parameter):
     a str of GPT-3's response. 
   """
   temp_sleep()
-  try: 
-    response = openai.Completion.create(
-                model=gpt_parameter["engine"],
-                prompt=prompt,
-                temperature=gpt_parameter["temperature"],
-                max_tokens=gpt_parameter["max_tokens"],
-                top_p=gpt_parameter["top_p"],
-                frequency_penalty=gpt_parameter["frequency_penalty"],
-                presence_penalty=gpt_parameter["presence_penalty"],
-                stream=gpt_parameter["stream"],
-                stop=gpt_parameter["stop"],)
-    return response.choices[0].text
-  except: 
-    print ("TOKEN LIMIT EXCEEDED")
+  try:
+    # completion mode keeps the legacy Completions call and the prompt's
+    # engine. chat mode sends this same prompt to the active chat model.
+    # Either way the endpoint is whatever `api` selected for this call.
+    return _api_router.generate(prompt, gpt_parameter, role="main")
+  except:
+    print ("TOKEN LIMIT EXCEEDED (%s)" % _api_router.active_label())
+    traceback.print_exc()
     return "TOKEN LIMIT EXCEEDED"
 
 
@@ -273,12 +258,12 @@ def safe_generate_response(prompt,
   return fail_safe_response
 
 
-def get_embedding(text, model="text-embedding-ada-002"):
+def get_embedding(text, model=None):
   text = text.replace("\n", " ")
   if not text: 
     text = "this is blank"
-  return openai.Embedding.create(
-          input=[text], model=model)['data'][0]['embedding']
+  # model=None uses the active profile's embedding model.
+  return _api_router.embed_text(text, model=model)
 
 
 if __name__ == '__main__':

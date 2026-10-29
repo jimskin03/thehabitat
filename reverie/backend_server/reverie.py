@@ -34,6 +34,13 @@ from global_methods import *
 from utils import *
 from maze import *
 from persona.persona import *
+from persona.prompt_template.api_router import (
+    format_status,
+    format_status_oneline,
+    handle_api_command,
+    poll_api_commands,
+    pop_pending_command,
+)
 
 ##############################################################################
 #                                  REVERIE                                   #
@@ -302,7 +309,10 @@ class ReverieServer:
     # <game_obj_cleanup> is used for that. 
     game_obj_cleanup = dict()
 
-    # The main while loop of Reverie. 
+    # The main while loop of Reverie.
+    # `poll_api_commands` sleeps the same amount as before, and also reads
+    # `api ...` lines so the LLM endpoint can change before the next step.
+    print (format_status_oneline())
     while (True): 
       # Done with this iteration if <int_counter> reaches 0. 
       if int_counter == 0: 
@@ -408,8 +418,8 @@ class ReverieServer:
 
           int_counter -= 1
           
-      # Sleep so we don't burn our machines. 
-      time.sleep(self.server_sleep)
+      # Sleep so we don't burn our machines. Also read `api` commands.
+      poll_api_commands(self.server_sleep)
 
 
   def open_server(self): 
@@ -426,12 +436,20 @@ class ReverieServer:
     print ("constructs powered by generative agents architecture and LLM. We")
     print ("clarify that these agents lack human-like agency, consciousness,")
     print ("and independent decision-making.\n---")
+    print (format_status())
+    print ("Switch the LLM API without restarting: api help")
+    print ("---")
 
     # <sim_folder> points to the current simulation folder.
     sim_folder = f"{fs_storage}/{self.sim_code}"
 
-    while True: 
-      sim_command = input("Enter option: ")
+    while True:
+      queued = pop_pending_command()
+      if queued is None:
+        sim_command = input("Enter option: ")
+      else:
+        sim_command = queued
+        print ("Enter option: %s" % sim_command)
       sim_command = sim_command.strip()
       ret_str = ""
 
@@ -460,6 +478,14 @@ class ReverieServer:
           # Saves the current simulation progress. 
           # Example: save
           self.save()
+
+        elif (sim_command.lower() == "api"
+              or sim_command.lower().startswith("api ")):
+          # Switch key, model, or endpoint. Applies on the next model call.
+          # Example: api mode chat
+          # Example: api model gpt-4o-mini
+          # Example: api add ollama http://127.0.0.1:11434/v1 llama3.1 ollama
+          ret_str += handle_api_command(sim_command)
 
         elif sim_command[:3].lower() == "run": 
           # Runs the number of steps specified in the prompt.

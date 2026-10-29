@@ -30,8 +30,31 @@ collision_block_id = "32125"
 
 # Verbose 
 debug = True
+
+# Optional named APIs. The reverie prompt can switch among these
+# without restarting. Delete this block to keep a single OpenAI key.
+# apis = {
+#   "openai": {
+#     "kind": "openai",
+#     "mode": "chat",
+#     "api_key": openai_api_key,
+#     "api_base": "https://api.openai.com/v1",
+#     "model": "gpt-4o-mini",
+#     "embedding_model": "text-embedding-ada-002",
+#   },
+#   "ollama": {
+#     "kind": "openai",
+#     "mode": "chat",
+#     "api_key": "ollama",
+#     "api_base": "http://127.0.0.1:11434/v1",
+#     "model": "llama3.1",
+#     "embedding_model": "nomic-embed-text",
+#     "embedding_api": "openai",
+#   },
+# }
+# active_api = "openai"
 ```
-Replace `<Your OpenAI API>` with your OpenAI API key, and `<name>` with your name.
+Replace `<Your OpenAI API>` with your OpenAI API key, and `<name>` with your name. `reverie/backend_server/utils.py.example` is the same file with the optional `apis` block turned on.
  
 ### Step 2. Install requirements.txt
 Install everything listed in the `requirements.txt` file (I strongly recommend first setting up a virtualenv as usual). A note on Python version: we tested our environment on Python 3.9.12. 
@@ -69,6 +92,27 @@ Your simulation should be running, and you will see the agents moving on the map
 
 The saved simulation can be accessed the next time you run the simulation server by providing the name of your simulation as the forked simulation. This will allow you to restart your simulation from the point where you left off.
 
+### Switching the LLM API while the server is running
+
+Every model call reads the active API at that moment. At `Enter option:`, or during `run` (type the command and press Enter; the next model call uses it):
+
+```
+api
+api list
+api mode chat
+api model gpt-4o-mini
+api add ollama http://127.0.0.1:11434/v1 llama3.1 ollama
+api ollama
+api key <another-key>
+api help
+```
+
+`mode completion` is the original behavior: prompts call the legacy Completions API with the engine stored on each prompt (`text-davinci-002` or `text-davinci-003`). `mode chat` sends that same prompt to the active chat model. Use chat mode for current OpenAI models and for any server with an OpenAI-compatible chat API (Ollama, vLLM, LM Studio, Groq, OpenRouter, Azure).
+
+A switch lasts until `reverie.py` exits. To keep named profiles across restarts, uncomment `apis` and `active_api` in `utils.py`. `api add` against a non-OpenAI base leaves embeddings on an OpenAI profile when one is configured. `api embedding <model>` or `api embedding-from <name>` changes that.
+
+A line typed during `run` that is not an `api` command waits and runs when `Enter option:` returns.
+
 ### Step 4. Replaying a Simulation
 You can replay a simulation that you have already run simply by having your environment server running and navigating to the following address in your browser: `http://localhost:8000/replay/<simulation-name>/<starting-time-step>`. Please make sure to replace `<simulation-name>` with the name of the simulation you want to replay, and `<starting-time-step>` with the integer time-step from which you wish to start the replay.
 
@@ -82,7 +126,7 @@ To start the demo, go to the following address on your browser: `http://localhos
 [http://localhost:8000/demo/July1_the_ville_isabella_maria_klaus-step-3-20/1/3/](http://localhost:8000/demo/July1_the_ville_isabella_maria_klaus-step-3-20/1/3/)
 
 ### Tips
-We've noticed that OpenAI's API can hang when it reaches the hourly rate limit. When this happens, you may need to restart your simulation. For now, we recommend saving your simulation often as you progress to ensure that you lose as little of the simulation as possible when you do need to stop and rerun it. Running these simulations, at least as of early 2023, could be somewhat costly, especially when there are many agents in the environment.
+If an API key hits a rate limit, switch from the reverie prompt with `api key <other-key>` or `api <name>` and keep the same run. Calls wait at most the active timeout (120 seconds unless you set `api timeout` or `request_timeout` on the profile), so a hung request returns and the next call can use the API you just selected. Saving often is still worth doing. Simulations can be costly when many agents are in the environment.
 
 ## <img src="https://joonsungpark.s3.amazonaws.com:443/static/assets/characters/profile/Maria_Lopez.png" alt="Generative Maria">   Simulation Storage Location
 All simulations that you save will be located in `environment/frontend_server/storage`, and all compressed demos will be located in `environment/frontend_server/compressed_storage`. 
