@@ -8,9 +8,45 @@
 
 This repository accompanies our research paper titled "[Generative Agents: Interactive Simulacra of Human Behavior](https://arxiv.org/abs/2304.03442)." It contains our core simulation module for  generative agents—computational agents that simulate believable human behaviors—and their game environment. Below, we document the steps for setting up the simulation environment on your local machine and for replaying the simulation as a demo animation.
 
+## Quick start with `start.sh`
+
+`start.sh` replaces the old multi-terminal routine. One command starts the web server (Django, port 8000) and the reverie simulation server (`reverie.py`) in the background. You no longer open two terminals, activate the virtual environment in each one, or type reverie's two startup answers yourself.
+
+**One-time setup** (the script does not install anything for you):
+
+1. Create the Python 3.9 virtual environment and install the requirements, as in [Step 2. Install requirements.txt](#step-2-install-requirementstxt) below. By default `start.sh` looks for `environment/frontend_server/.venv`; set `VENV=/path/to/venv` to use another one.
+2. Create `reverie/backend_server/utils.py` from `utils.py.example`, as in the setup steps below. `start.sh` stops with a clear message if it is missing.
+
+**Each time you want to run it:**
+
+1. From the repository root, run:
+
+   ```bash
+   ./start.sh
+   ```
+
+   It activates the virtual environment, starts both servers, prints the web address, and follows the logs. Press **Ctrl+C** to stop both servers.
+2. Open the habitat web page at [http://127.0.0.1:8000/](http://127.0.0.1:8000/). To reach it from another device over Tailscale, start with `WEB_HOST=tailscale ./start.sh` and open the address it prints. See [Open the app from another device over Tailscale](#open-the-app-from-another-device-over-tailscale).
+3. In installations with the Habitat interface, click **Settings**, enter your API key, and click **Save**, as described in [Enter an API key in the Habitat interface](#enter-an-api-key-in-the-habitat-interface). Otherwise the key comes from `utils.py`.
+4. `reverie.py` is already running. `start.sh` started it with the web server, and saving a key in the web page does not start it. Send it commands with `./start.sh send "run 100"`.
+
+Other commands and options:
+
+| Command or option | What it does |
+| --- | --- |
+| `./start.sh send "run 100"` | Types a command into the running reverie prompt |
+| `./start.sh logs` | Follows both logs from another terminal |
+| `./start.sh stop` | Stops both servers from another terminal |
+| `FORK_SIM`, `SIM_NAME` | Simulation to fork from (default `base_the_ville_isabella_maria_klaus`) and the name of the new run (default `habitat-<timestamp>`) |
+| `WEB_PORT`, `WEB_HOST` | Web port (default 8000) and bind address (default `127.0.0.1`, or `tailscale` to use the Tailscale IP) |
+
+Logs and process IDs are written to `.habitat-run/`, which is gitignored. In this background mode reverie's interactive `api ...` commands do not work; set the model in `utils.py` instead. This script has not been tested on every setup yet, so if it fails, the manual steps below still work.
+
+The sections below keep the manual instructions, which are still valid if you prefer to run each server yourself.
+
 ## Start the app and connect
 
-These steps are for an existing installation with dependencies installed in `environment/frontend_server/.venv`. If you are setting up a new installation, follow **Setting Up the Environment** below first. The example checkout is `/home/jimskin03/Projects/thehabitat`; use your own checkout path if different.
+These steps are for an existing installation with dependencies installed in `environment/frontend_server/.venv`. If you are setting up a new installation, follow **Setting Up the Environment** below first. In the commands below, `<YOUR_PROJECT_DIR>` is the folder where you cloned this repository.
 
 ### Open the app on the server computer
 
@@ -18,7 +54,7 @@ These steps are for an existing installation with dependencies installed in `env
 2. Go to the folder containing `manage.py`:
 
    ```bash
-   cd /home/jimskin03/Projects/thehabitat/environment/frontend_server
+   cd <YOUR_PROJECT_DIR>/environment/frontend_server
    ```
 
 3. Start the server using the Python executable in the project's virtual environment:
@@ -41,17 +77,17 @@ These steps are for an existing installation with dependencies installed in `env
    tailscale ip -4
    ```
 
-   On the installation used here, the address is `100.96.46.109`. Replace this address in the commands and browser URL below if your server reports a different one.
+   Use this address, shown below as `<YOUR_TAILSCALE_IP>`, in the commands and browser URL below.
 
 3. If the server is already running, press **Ctrl+C** in its terminal to stop it.
 4. Start it again, listening on its Tailscale address:
 
    ```bash
-   cd /home/jimskin03/Projects/thehabitat/environment/frontend_server
-   .venv/bin/python manage.py runserver 100.96.46.109:8000
+   cd <YOUR_PROJECT_DIR>/environment/frontend_server
+   .venv/bin/python manage.py runserver <YOUR_TAILSCALE_IP>:8000
    ```
 
-5. Leave the terminal open. On the **other device**, open [http://100.96.46.109:8000/](http://100.96.46.109:8000/). Use `http://` and include `:8000`.
+5. Leave the terminal open. On the **other device**, open [http://<YOUR_TAILSCALE_IP>:8000/](http://<YOUR_TAILSCALE_IP>:8000/). Use `http://` and include `:8000`.
 
 When bound to the Tailscale address, use that address in browsers on either computer. The default `runserver` command listens on `127.0.0.1`, which only accepts connections from the server computer itself.
 
@@ -76,7 +112,7 @@ The Habitat interface changes are currently local to the installation described 
 | The page works on the server but not on another device | Restart with the server's Tailscale IP, as shown above. On the other device, use that IP in the browser, not `localhost` or `127.0.0.1`. |
 | The Tailscale URL still times out | Confirm both devices are connected to Tailscale and the server terminal is still running. On the server, use `ss -ltnp` to check that port 8000 is listening on its Tailscale IP. Check that host firewall rules and Tailscale access rules allow the client to reach the server on TCP port 8000. |
 | `Cannot assign requested address` | Run `tailscale ip -4` on the server again and use the address it reports. Make sure Tailscale is connected before starting Django on that address. |
-| `DisallowedHost` or `Invalid HTTP_HOST header` | In `environment/frontend_server/frontend_server/settings/local.py`, ensure `ALLOWED_HOSTS` allows the server's Tailscale IP. For example, add `"100.96.46.109"` to the list, without `http://` or `:8000`, and restart the server. |
+| `DisallowedHost` or `Invalid HTTP_HOST header` | In `environment/frontend_server/frontend_server/settings/local.py`, ensure `ALLOWED_HOSTS` allows the server's Tailscale IP. For example, add your server's Tailscale IP (as a quoted string, e.g. `"<YOUR_TAILSCALE_IP>"`) to the list, without `http://` or `:8000`, and restart the server. |
 | No **Settings** button | Open the root URL `/`. If it still shows the original landing page, your checkout does not include the Habitat interface; use the original simulation instructions below. |
 
 ## <img src="https://joonsungpark.s3.amazonaws.com:443/static/assets/characters/profile/Isabella_Rodriguez.png" alt="Generative Isabella">   Setting Up the Environment 
@@ -141,7 +177,7 @@ python3.9 -m venv .venv
 Skip creating the environment if `.venv` already exists and works. The pinned dependencies are old; installing them with a newer system Python can fail. When following the original two-server instructions below, activate this virtual environment in each terminal before running the `python` commands:
 
 ```bash
-source /home/jimskin03/Projects/thehabitat/environment/frontend_server/.venv/bin/activate
+source <YOUR_PROJECT_DIR>/environment/frontend_server/.venv/bin/activate
 ```
 
 Use your own checkout path if different. Activation makes `python` refer to the environment's executable even when the system has only `python3`.
