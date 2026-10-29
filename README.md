@@ -8,6 +8,42 @@
 
 This repository accompanies our research paper titled "[Generative Agents: Interactive Simulacra of Human Behavior](https://arxiv.org/abs/2304.03442)." It contains our core simulation module for  generative agents—computational agents that simulate believable human behaviors—and their game environment. Below, we document the steps for setting up the simulation environment on your local machine and for replaying the simulation as a demo animation.
 
+## Quick start with `start.sh`
+
+`start.sh` replaces the old multi-terminal routine. One command starts the web server (Django, port 8000) and the reverie simulation server (`reverie.py`) in the background. You no longer open two terminals, activate the virtual environment in each one, or type reverie's two startup answers yourself.
+
+**One-time setup** (the script does not install anything for you):
+
+1. Create the Python 3.9 virtual environment and install the requirements, as in [Step 2. Install requirements.txt](#step-2-install-requirementstxt) below. By default `start.sh` looks for `environment/frontend_server/.venv`; set `VENV=/path/to/venv` to use another one.
+2. Create `reverie/backend_server/utils.py` from `utils.py.example`, as in the setup steps below. `start.sh` stops with a clear message if it is missing.
+
+**Each time you want to run it:**
+
+1. From the repository root, run:
+
+   ```bash
+   ./start.sh
+   ```
+
+   It activates the virtual environment, starts both servers, prints the web address, and follows the logs. Press **Ctrl+C** to stop both servers.
+2. Open the habitat web page at [http://127.0.0.1:8000/](http://127.0.0.1:8000/). To reach it from another device over Tailscale, start with `WEB_HOST=tailscale ./start.sh` and open the address it prints. See [Open the app from another device over Tailscale](#open-the-app-from-another-device-over-tailscale).
+3. In installations with the Habitat interface, click **Settings**, enter your API key, and click **Save**, as described in [Enter an API key in the Habitat interface](#enter-an-api-key-in-the-habitat-interface). Otherwise the key comes from `utils.py`.
+4. `reverie.py` is already running. `start.sh` started it with the web server, and saving a key in the web page does not start it. Send it commands with `./start.sh send "run 100"`.
+
+Other commands and options:
+
+| Command or option | What it does |
+| --- | --- |
+| `./start.sh send "run 100"` | Types a command into the running reverie prompt |
+| `./start.sh logs` | Follows both logs from another terminal |
+| `./start.sh stop` | Stops both servers from another terminal |
+| `FORK_SIM`, `SIM_NAME` | Simulation to fork from (default `base_the_ville_isabella_maria_klaus`) and the name of the new run (default `habitat-<timestamp>`) |
+| `WEB_PORT`, `WEB_HOST` | Web port (default 8000) and bind address (default `127.0.0.1`, or `tailscale` to use the Tailscale IP) |
+
+Logs and process IDs are written to `.habitat-run/`, which is gitignored. In this background mode reverie's interactive `api ...` commands do not work; set the model in `utils.py` instead. This script has not been tested on every setup yet, so if it fails, the manual steps below still work.
+
+The sections below keep the manual instructions, which are still valid if you prefer to run each server yourself.
+
 ## Start the app and connect
 
 These steps are for an existing installation with dependencies installed in `environment/frontend_server/.venv`. If you are setting up a new installation, follow **Setting Up the Environment** below first. The example checkout is `/home/jimskin03/Projects/thehabitat`; use your own checkout path if different.
