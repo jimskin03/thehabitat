@@ -1,0 +1,11 @@
+.git
+.gitignore
+.habitat-run
+**/__pycache__
+**/*.pyc
+**/.venv
+.venv
+venv
+.env
+# Never bake secrets into the image: utils.py is mounted at run time (see docker-compose.yml).
+reverie/backend_server/utils.py

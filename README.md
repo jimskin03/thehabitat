@@ -44,6 +44,42 @@ Logs and process IDs are written to `.habitat-run/`, which is gitignored. In thi
 
 The sections below keep the manual instructions, which are still valid if you prefer to run each server yourself.
 
+## Docker
+
+The `Dockerfile` and `docker-compose.yml` run the whole stack (the Django web server and `reverie.py`) in one container pinned to Python 3.9, so the host's own Python version does not matter. The container's only process is `start.sh`, which starts both servers and stops both when the container stops.
+
+1. Create your `utils.py` from the example, on the host, before the first start (the image does not contain it, so your key is never baked into the image):
+
+   ```bash
+   cp reverie/backend_server/utils.py.example reverie/backend_server/utils.py
+   ```
+
+   Edit it and set your API key, as in [Step 1. Generate Utils File](#step-1-generate-utils-file). Without this file `docker compose up` stops with an error, because the file is mounted into the container read-only. `reverie.py` also cannot run without it.
+2. From the repository root, build and start:
+
+   ```bash
+   docker compose up --build
+   ```
+
+   The first build installs the pinned dependencies and takes a while. Press **Ctrl+C** (or run `docker compose down` from another terminal) to stop both servers.
+3. Open [http://localhost:8000/](http://localhost:8000/). The port is published on `127.0.0.1` only. To publish it on other interfaces, run `HABITAT_BIND=0.0.0.0 docker compose up` (the app runs with Django `DEBUG` on, so only do that on a network you trust).
+4. In installations with the Habitat interface, click **Settings**, enter your API key, and click **Save**, as described in [Enter an API key in the Habitat interface](#enter-an-api-key-in-the-habitat-interface). Otherwise the key comes from `utils.py`. As with `start.sh`, saving a key does not start `reverie.py`; it is already running.
+
+Useful commands while it runs:
+
+| Command | What it does |
+| --- | --- |
+| `docker compose exec habitat ./start.sh send "run 100"` | Types a command into the running reverie prompt |
+| `docker compose logs -f` | Follows the web and reverie logs |
+| `docker compose down` | Stops and removes the container (data volumes are kept) |
+| `docker compose down -v` | Also deletes the data volumes, including saved simulations |
+
+Settings you can pass as environment variables, for example `SIM_NAME=my-run docker compose up`: `FORK_SIM` (simulation to fork from) and `SIM_NAME` (name of the new run; by default each start creates a new timestamped run).
+
+Saved data lives in named volumes: `.habitat-run` (logs and PIDs) and the `storage`, `temp_storage` and `compressed_storage` folders under `environment/frontend_server`. A new volume starts with the repository's copy of its folder; after that, rebuilding the image does not overwrite it.
+
+Notes: `WEB_HOST=tailscale` does not apply inside the container, which has no Tailscale; the compose file binds the web server to `0.0.0.0` inside the container and you control exposure with the published port. As with `start.sh`, reverie's interactive `api ...` commands do not work; set the model in `utils.py`.
+
 ## Start the app and connect
 
 These steps are for an existing installation with dependencies installed in `environment/frontend_server/.venv`. If you are setting up a new installation, follow **Setting Up the Environment** below first. In the commands below, `<YOUR_PROJECT_DIR>` is the folder where you cloned this repository.

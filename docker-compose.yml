@@ -1,0 +1,45 @@
+# One service: Django web server (port 8000) + reverie.py, via start.sh, on Python 3.9.
+#
+#   cp reverie/backend_server/utils.py.example reverie/backend_server/utils.py   # then edit your key
+#   docker compose up --build
+#
+# Then open http://localhost:8000/ . Stop with Ctrl+C or `docker compose down`.
+services:
+  habitat:
+    build: .
+    image: thehabitat:py39
+    init: true                 # forwards Ctrl+C / docker stop to start.sh so both servers stop cleanly
+    restart: unless-stopped
+    ports:
+      # Localhost only by default (the app runs with Django DEBUG on). To publish it on
+      # other interfaces, set HABITAT_BIND, e.g. HABITAT_BIND=0.0.0.0 docker compose up
+      - "${HABITAT_BIND:-127.0.0.1}:8000:8000"
+    environment:
+      # 0.0.0.0 is required inside the container so the published port works.
+      # WEB_HOST=tailscale does not apply here: there is no Tailscale in the container.
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: "8000"
+      # Optional: simulation to fork from, and a fixed name for the new run.
+      # An empty SIM_NAME means a new timestamped run on every start.
+      FORK_SIM: ${FORK_SIM:-base_the_ville_isabella_maria_klaus}
+      SIM_NAME: ${SIM_NAME:-}
+    volumes:
+      # Your API key and settings. Not baked into the image. Compose stops with an
+      # error if this file does not exist yet, instead of silently creating a folder.
+      - type: bind
+        source: ./reverie/backend_server/utils.py
+        target: /app/reverie/backend_server/utils.py
+        read_only: true
+        bind:
+          create_host_path: false
+      # Persistent data. A new volume starts with the repo's copy of each folder.
+      - habitat-run:/app/.habitat-run
+      - habitat-storage:/app/environment/frontend_server/storage
+      - habitat-temp-storage:/app/environment/frontend_server/temp_storage
+      - habitat-compressed-storage:/app/environment/frontend_server/compressed_storage
+
+volumes:
+  habitat-run:
+  habitat-storage:
+  habitat-temp-storage:
+  habitat-compressed-storage:
