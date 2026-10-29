@@ -24,14 +24,11 @@ services:
       FORK_SIM: ${FORK_SIM:-base_the_ville_isabella_maria_klaus}
       SIM_NAME: ${SIM_NAME:-}
     volumes:
-      # Your API key and settings. Not baked into the image. Compose stops with an
-      # error if this file does not exist yet, instead of silently creating a folder.
-      - type: bind
-        source: ./reverie/backend_server/utils.py
-        target: /app/reverie/backend_server/utils.py
-        read_only: true
-        bind:
-          create_host_path: false
+      # Your API key and settings live in utils.py in this folder, which is not baked
+      # into the image. The folder is mounted read-write so the web UI's /settings page
+      # can save the key into utils.py (it swaps in a new file, which a single-file
+      # mount cannot do). Create utils.py from utils.py.example before the first start.
+      - ./reverie/backend_server:/app/reverie/backend_server
       # Persistent data. A new volume starts with the repo's copy of each folder.
       - habitat-run:/app/.habitat-run
       - habitat-storage:/app/environment/frontend_server/storage

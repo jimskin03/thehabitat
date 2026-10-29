@@ -54,7 +54,7 @@ The `Dockerfile` and `docker-compose.yml` run the whole stack (the Django web se
    cp reverie/backend_server/utils.py.example reverie/backend_server/utils.py
    ```
 
-   Edit it and set your API key, as in [Step 1. Generate Utils File](#step-1-generate-utils-file). Without this file `docker compose up` stops with an error, because the file is mounted into the container read-only. `reverie.py` also cannot run without it.
+   Edit it and set your API key, as in [Step 1. Generate Utils File](#step-1-generate-utils-file). Without this file the container stops at startup with a "Missing ... utils.py" message, because `reverie.py` cannot run without it. The `reverie/backend_server` folder is mounted into the container read-write, so the web UI's `/settings` page can also save the key into `utils.py`.
 2. From the repository root, build and start:
 
    ```bash

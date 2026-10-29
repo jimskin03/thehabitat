@@ -57,3 +57,5 @@ sudo apt-get install docker-compose-plugin
 ```
 docker compose version
 ```
+
+Note: with the Docker setup in this repo, the web UI's Settings page (/settings) can save the API key from inside the container. Restart reverie.py (for example `docker compose restart`) after saving, so the new key takes effect.
