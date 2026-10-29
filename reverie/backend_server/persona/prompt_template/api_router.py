@@ -11,6 +11,7 @@ import select
 import sys
 import threading
 import time
+from urllib.parse import urlsplit
 
 
 try:
@@ -384,16 +385,31 @@ def generate(prompt, gpt_parameter=None, role="main"):
   return text
 
 
+def _embedding_target(profile):
+  """Use the active endpoint unless another embedding API was requested."""
+  hop = profile.get("embedding_api")
+  if not hop:
+    return profile
+  found = snapshot_named(hop)
+  if found is None:
+    raise ValueError("No embedding API named %r. Check embedding_api in utils.py." % hop)
+  return found[1]
+
+
+def _embedding_model_for(profile, model=None):
+  model = model or profile.get("embedding_model") or "text-embedding-ada-002"
+  # OpenRouter requires provider-qualified IDs, even for OpenAI models.
+  if (urlsplit(profile["api_base"]).hostname == "openrouter.ai"
+      and model in ("text-embedding-ada-002", "text-embedding-3-small",
+                    "text-embedding-3-large")):
+    return "openai/" + model
+  return model
+
+
 def embed_text(text, model=None):
   poll_api_commands(0)
-  profile = snapshot()[1]
-  target = profile
-  hop = profile.get("embedding_api")
-  if hop:
-    found = snapshot_named(hop)
-    if found:
-      target = found[1]
-  use_model = model or target.get("embedding_model") or "text-embedding-ada-002"
+  target = _embedding_target(snapshot()[1])
+  use_model = _embedding_model_for(target, model)
   body = _identity_kwargs(target, use_model)
   body["input"] = [text]
   response = _call(openai.Embedding.create, target, body)
@@ -406,7 +422,13 @@ def format_status():
   except RuntimeError:
     return "No LLM API configured."
   hop = profile.get("embedding_api")
-  embed_line = profile.get("embedding_model") or "(unset)"
+  try:
+    target = _embedding_target(profile)
+    embed_line = _embedding_model_for(target)
+    embed_base = target["api_base"]
+  except ValueError as exc:
+    embed_line = str(exc)
+    embed_base = "(unconfigured)"
   if hop:
     embed_line += " (via %s)" % hop
   timeout = profile.get("request_timeout")
@@ -419,6 +441,7 @@ def format_status():
     "  chat model: %s" % profile.get("chat_model"),
     "  strong model: %s" % profile.get("strong_model"),
     "  embedding: %s" % embed_line,
+    "  embedding base: %s" % embed_base,
     "  key: %s" % _mask_key(profile.get("api_key")),
     "  timeout: %s" % timeout_line,
   ])
@@ -488,20 +511,6 @@ def _assign_model(profile, model):
     profile["mode"] = "completion"
   else:
     profile["mode"] = "chat"
-
-
-def _openai_embedding_host(except_name):
-  with _registry_lock:
-    if "openai" in _registry and except_name != "openai":
-      base = _registry["openai"].get("api_base", "")
-      if "api.openai.com" in base:
-        return "openai"
-    for name, profile in _registry.items():
-      if name == except_name:
-        continue
-      if "api.openai.com" in profile.get("api_base", ""):
-        return name
-  return None
 
 
 def handle_api_command(line):
@@ -593,18 +602,10 @@ def _add(name, base_url, model, key):
     "model": model,
     "embedding_model": "text-embedding-ada-002",
   })
-  host = None
-  if "api.openai.com" not in profile["api_base"]:
-    host = _openai_embedding_host(name)
-    if host:
-      profile["embedding_api"] = host
   with _registry_lock:
     _registry[name] = profile
     _set_active(name)
-  message = format_status()
-  if host:
-    message += "\nEmbeddings stay on %s. Override with: api embedding <model>" % host
-  return message
+  return format_status()
 
 
 def _model(model):

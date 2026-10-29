@@ -43,6 +43,16 @@ apis = {
     "model": "gpt-4o-mini",
     "embedding_model": "text-embedding-ada-002",
   },
+  # Chat and embeddings both use this endpoint and its OpenRouter key.
+  # Keep ada-002 for compatibility with the supplied agents' saved memories.
+  "openrouter": {
+    "kind": "openai",
+    "mode": "chat",
+    "api_key": "<Your OpenRouter API key>",
+    "api_base": "https://openrouter.ai/api/v1",
+    "model": "openrouter/free",
+    "embedding_model": "openai/text-embedding-ada-002",
+  },
   # OpenAI-compatible local server. base URL includes /v1.
   "ollama": {
     "kind": "openai",

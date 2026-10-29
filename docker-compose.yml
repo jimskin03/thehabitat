@@ -11,8 +11,9 @@ services:
     init: true                 # forwards Ctrl+C / docker stop to start.sh so both servers stop cleanly
     restart: unless-stopped
     ports:
-      # Localhost only by default (the app runs with Django DEBUG on). To publish it on
-      # other interfaces, set HABITAT_BIND, e.g. HABITAT_BIND=0.0.0.0 docker compose up
+      # Localhost for this machine. Set HABITAT_BIND to the Tailscale IPv4
+      # (never 0.0.0.0: Django DEBUG is on) so other tailnet devices can connect.
+      - "127.0.0.1:8000:8000"
       - "${HABITAT_BIND:-127.0.0.1}:8000:8000"
     environment:
       # 0.0.0.0 is required inside the container so the published port works.
@@ -34,6 +35,21 @@ services:
       - habitat-storage:/app/environment/frontend_server/storage
       - habitat-temp-storage:/app/environment/frontend_server/temp_storage
       - habitat-compressed-storage:/app/environment/frontend_server/compressed_storage
+      # Host views override. The image copies this file at build time.
+      - type: bind
+        source: ./environment/frontend_server/translator/views.py
+        target: /app/environment/frontend_server/translator/views.py
+        read_only: true
+        bind:
+          create_host_path: false
+      # Host settings override. The image copies this file at build time, so a
+      # bind is required for ALLOWED_HOSTS changes to apply without a rebuild.
+      - type: bind
+        source: ./environment/frontend_server/frontend_server/settings/local.py
+        target: /app/environment/frontend_server/frontend_server/settings/local.py
+        read_only: true
+        bind:
+          create_host_path: false
 
 volumes:
   habitat-run:

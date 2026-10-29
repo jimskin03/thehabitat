@@ -114,10 +114,11 @@ def home(request):
   with open(f_curr_sim_code) as json_file:  
     sim_code = json.load(json_file)["sim_code"]
   
-  with open(f_curr_step) as json_file:  
+  with open(f_curr_step) as json_file:
     step = json.load(json_file)["step"]
 
-  os.remove(f_curr_step)
+  # Keep curr_step.json. Deleting it made every refresh show
+  # "Please start the backend first" even while reverie was still running.
 
   persona_names = []
   persona_names_set = set()

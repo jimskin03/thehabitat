@@ -25,7 +25,13 @@ SECRET_KEY = 'c7l%1%b=2sh$o9zqvd4i*h8*__^@-5sm-y)m(1ib2t92)43@62'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "100.96.46.109",
+    "xhacker.tail829182.ts.net",
+    "fd7a:115c:a1e0::763a:2e6e",
+]
 
 
 # Application definition

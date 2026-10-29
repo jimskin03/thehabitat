@@ -124,11 +124,11 @@ class ApiRouterTests(unittest.TestCase):
     self.assertEqual(gpt_structure.ChatGPT_request("hi"), "chat-ok")
     self.assertEqual(OPENAI.calls[-1][1]["model"], "gpt-4o-mini")
 
-  def test_api_add_switches_endpoint_and_keeps_openai_embeddings(self):
+  def test_api_add_keeps_embeddings_on_the_selected_endpoint(self):
     message = api_router.handle_api_command(
       "api add ollama http://127.0.0.1:11434/v1 llama3.1 ollama")
     self.assertIn("Active API: ollama", message)
-    self.assertIn("Embeddings stay on openai", message)
+    self.assertIn("embedding base: http://127.0.0.1:11434/v1", message)
 
     gpt_structure.GPT_request("Hello", PARAM)
     kind, kwargs = OPENAI.calls[-1]
@@ -141,10 +141,75 @@ class ApiRouterTests(unittest.TestCase):
     gpt_structure.get_embedding("a memory")
     kind, kwargs = OPENAI.calls[-1]
     self.assertEqual(kind, "embedding")
-    self.assertEqual(kwargs["api_base"], "https://api.openai.com/v1")
-    self.assertEqual(kwargs["api_key"], "sk-test-key")
+    self.assertEqual(kwargs["api_base"], "http://127.0.0.1:11434/v1")
+    self.assertEqual(kwargs["api_key"], "ollama")
     self.assertEqual(kwargs["model"], "text-embedding-ada-002")
     self.assertEqual(kwargs["input"], ["a memory"])
+
+  def test_openrouter_embedding_then_chat_use_the_same_provider(self):
+    api_router.handle_api_command(
+      "api add openrouter https://openrouter.ai/api/v1 openrouter/free sk-or-test")
+
+    self.assertEqual(gpt_structure.get_embedding("a memory"), [0.25, 0.5])
+    self.assertEqual(gpt_structure.GPT_request("Hello", PARAM), "chat-ok")
+    self.assertEqual([kind for kind, _ in OPENAI.calls], ["embedding", "chat"])
+    for _, kwargs in OPENAI.calls:
+      self.assertEqual(kwargs["api_base"], "https://openrouter.ai/api/v1")
+      self.assertEqual(kwargs["api_key"], "sk-or-test")
+    self.assertEqual(OPENAI.calls[0][1]["model"], "openai/text-embedding-ada-002")
+    self.assertEqual(OPENAI.calls[1][1]["model"], "openrouter/free")
+
+  def test_openrouter_declared_profile_and_embedding_models(self):
+    UTILS.apis = {"openrouter": {
+      "api_base": "https://openrouter.ai/api/v1/",
+      "api_key": "sk-or-test",
+      "model": "openrouter/free",
+    }}
+    UTILS.active_api = "openrouter"
+    api_router.bootstrap(UTILS)
+    for model, expected in (
+        (None, "openai/text-embedding-ada-002"),
+        ("text-embedding-3-small", "openai/text-embedding-3-small"),
+        ("text-embedding-3-large", "openai/text-embedding-3-large"),
+        ("openai/text-embedding-ada-002", "openai/text-embedding-ada-002"),
+        ("qwen/qwen3-embedding-8b", "qwen/qwen3-embedding-8b")):
+      with self.subTest(model=model):
+        gpt_structure.get_embedding("memory", model=model)
+        self.assertEqual(OPENAI.calls[-1][1]["model"], expected)
+        self.assertEqual(OPENAI.calls[-1][1]["api_key"], "sk-or-test")
+
+  def test_explicit_embedding_provider_is_preserved_and_status_is_accurate(self):
+    api_router.handle_api_command("api embedding text-embedding-3-small")
+    api_router.handle_api_command(
+      "api add openrouter https://openrouter.ai/api/v1 openrouter/free sk-or-test")
+    message = api_router.handle_api_command("api embedding-from openai")
+    self.assertIn("embedding: text-embedding-3-small (via openai)", message)
+    self.assertIn("embedding base: https://api.openai.com/v1", message)
+    self.assertNotIn("sk-test-key", message)
+    self.assertNotIn("sk-or-test", message)
+    gpt_structure.get_embedding("memory")
+    kwargs = OPENAI.calls[-1][1]
+    self.assertEqual(kwargs["api_base"], "https://api.openai.com/v1")
+    self.assertEqual(kwargs["api_key"], "sk-test-key")
+    self.assertEqual(kwargs["model"], "text-embedding-3-small")
+
+    api_router.handle_api_command("api embedding-from off")
+    gpt_structure.get_embedding("memory")
+    self.assertEqual(OPENAI.calls[-1][1]["api_base"], "https://openrouter.ai/api/v1")
+    self.assertEqual(OPENAI.calls[-1][1]["model"], "openai/text-embedding-ada-002")
+
+  def test_missing_embedding_profile_fails_before_sending_credentials(self):
+    UTILS.apis = {"openrouter": {
+      "api_base": "https://openrouter.ai/api/v1",
+      "api_key": "sk-or-test",
+      "model": "openrouter/free",
+      "embedding_api": "missing",
+    }}
+    UTILS.active_api = "openrouter"
+    api_router.bootstrap(UTILS)
+    with self.assertRaisesRegex(ValueError, "missing"):
+      gpt_structure.get_embedding("memory")
+    self.assertEqual(OPENAI.calls, [])
 
   def test_embedding_override_follows_the_active_api(self):
     api_router.handle_api_command(

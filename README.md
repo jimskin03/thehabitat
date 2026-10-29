@@ -268,7 +268,11 @@ api help
 
 `mode completion` is the original behavior: prompts call the legacy Completions API with the engine stored on each prompt (`text-davinci-002` or `text-davinci-003`). `mode chat` sends that same prompt to the active chat model. Use chat mode for current OpenAI models and for any server with an OpenAI-compatible chat API (Ollama, vLLM, LM Studio, Groq, OpenRouter, Azure).
 
-A switch lasts until `reverie.py` exits. To keep named profiles across restarts, uncomment `apis` and `active_api` in `utils.py`. `api add` against a non-OpenAI base leaves embeddings on an OpenAI profile when one is configured. `api embedding <model>` or `api embedding-from <name>` changes that.
+A switch lasts until `reverie.py` exits. To keep named profiles across restarts, configure `apis` and `active_api` in `utils.py` (see `utils.py.example`). Embeddings use the active API's endpoint and key unless you explicitly set `embedding_api` or run `api embedding-from <name>`. Use `api embedding <model>` to select an embedding model on the active API. Local chat servers also need a supported embedding model, such as `nomic-embed-text` for Ollama.
+
+For OpenRouter, set the base to `https://openrouter.ai/api/v1`, use an OpenRouter key, and set `embedding_model` to `openai/text-embedding-ada-002`. [OpenRouter supports this model through its embeddings endpoint](https://openrouter.ai/openai/text-embedding-ada-002), so an OpenAI key is not needed. The supplied agent memories use ada-002; keep that embedding model when continuing them. The router also accepts the unqualified OpenAI embedding model names and adds the `openai/` prefix when calling OpenRouter.
+
+If an existing OpenRouter profile contains `"embedding_api": "openai"`, remove that setting and restart reverie, or run `api embedding openai/text-embedding-ada-002` at the reverie prompt for the current session. Run `api` to see the effective embedding model and base URL. A free chat model such as `openrouter/free` does not make embedding requests free; embedding access still depends on the OpenRouter account.
 
 A line typed during `run` that is not an `api` command waits and runs when `Enter option:` returns.
 
