@@ -19,8 +19,11 @@ existing `reverie` backend or the Django frontend.
 - The point of the project is to watch believable, mostly self-directed behaviour emerge,
   not to simulate a detailed world.
 
-Reference art: the reference image is a mobile-game-style night scene of a waterside
-village with boats along the shore. See open question 1 about whether it can be used.
+Art: the project's own background is an original, newly generated night scene of a waterside
+village with boats along the shore (`docs/assets/village-night-background.jpg`). A game
+screenshot was used only as a mood and style reference. It is not used or included in the repo.
+
+![Village night background](assets/village-night-background.jpg)
 
 ## 2. Architecture
 
@@ -187,9 +190,10 @@ the village sim's simple grid.
 
 ## 6. Open questions
 
-1. **Art rights.** The reference image appears to be a screenshot from a game. Can it be
-   used in a public repo, or should we commission or generate an original village
-   background in the same style?
+1. **Art direction (resolved for now).** The village background is an original generated image
+   (see section 1), not the reference screenshot. Still open: keep generating art, commission an
+   artist, or add sprites and tiles in the same style. Confirm the generated image's licence terms
+   before any commercial use.
 2. **Platform.** Browser (canvas or Phaser-style) or a native viewer? Does it need to
    run on a phone?
 3. **Reuse or standalone.** Should this live inside thehabitat (new folder) or in its own
