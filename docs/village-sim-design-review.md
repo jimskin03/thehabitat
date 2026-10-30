@@ -109,7 +109,83 @@ Keep from reverie: the idea of persona plus memory plus plan, the discrete step 
 JSON snapshots that can be replayed, and the practice of running with different model
 providers.
 
-## 5. Open questions
+## 5. Reuse target: reverie's agent behavior pipeline
+
+The new village sim should reuse the shape of reverie's per-agent behavior pipeline for its
+core logic, simplified as described in section 4. All paths below are under
+`reverie/backend_server/`.
+
+### 5.1 Main loop
+
+`ReverieServer.start_server` in `reverie.py` is the main loop. Each step it:
+
+1. waits for the frontend's environment file for the current step,
+2. moves every persona to the tile the frontend reported,
+3. calls `persona.move(...)` for each persona,
+4. writes all movements to a movement file for the frontend,
+5. advances the clock by `sec_per_step`.
+
+### 5.2 Per-agent cognitive sequence
+
+`Persona.move` in `persona/persona.py` sets the current tile, works out whether it is a first
+day or a new day, then runs these in order:
+
+`perceive` -> `retrieve` -> `plan` -> `reflect` -> `execute`
+
+It returns the next tile, an emoji, and a description of the action.
+
+### 5.3 Inputs to an agent's next action
+
+- **Environment state.** `perceive` looks at nearby tiles in the maze for events and objects.
+  Each one is scored for importance by the LLM (`generate_poig_score`).
+- **Memory.** `retrieve` (`new_retrieve`) pulls relevant memories from the associative memory
+  using recency, importance and embedding similarity.
+- **Scratch memory.** The working state: identity, daily plan, schedule, current action,
+  path, and chat state.
+- **LLM prompts.** `plan.py` calls the prompt functions in `persona/prompt_template/run_gpt_prompt.py`,
+  which go through `gpt_structure.py` and `api_router.py` to the model.
+
+### 5.4 Plan
+
+- On a new day, `_long_term_planning` generates the wake-up hour, the daily plan and the
+  hourly schedule.
+- When the current action finishes, `_determine_action` decomposes the next task and picks
+  the place, the object, an emoji and the event triple.
+- `_should_react` then decides whether to talk or wait. Chatting goes through `_chat_react`
+  and `generate_convo`.
+
+### 5.5 Reflect
+
+`reflect.py` checks `reflection_trigger`, which fires when accumulated importance runs out.
+`run_reflect` then generates focal points and insights and stores them as new memories.
+
+### 5.6 Execute
+
+`execute.py` is **not** LLM-based. `path_finder` turns the plan's place address into a tile
+path, and `execute` returns the next tile on it. This is the cheap part and a natural fit for
+the village sim's simple grid.
+
+### 5.7 Key files
+
+- `reverie.py`
+- `persona/persona.py`
+- the six modules in `persona/cognitive_modules/`: `perceive.py`, `retrieve.py`, `plan.py`,
+  `execute.py`, `reflect.py`, `converse.py`
+- `persona/memory_structures/`: `associative_memory.py`, `scratch.py`, `spatial_memory.py`
+- `persona/prompt_template/`: `run_gpt_prompt.py`, `gpt_structure.py`, `api_router.py`
+
+### 5.8 How the village sim maps onto it
+
+| Reverie piece | Village sim plan |
+| --- | --- |
+| `start_server` loop and env/movement files | One runner that writes a snapshot per step |
+| `Persona.move` sequence | Keep the same order, as a replaceable `decide` function |
+| `perceive` / `retrieve` | Nearby events plus a short rolling memory |
+| `plan` (`_long_term_planning`, `_determine_action`, `_should_react`) | Once-a-day plan, model call only on interesting events |
+| `reflect` | Optional, once per game day |
+| `execute` and `path_finder` | Plain pathing on one small grid |
+
+## 6. Open questions
 
 1. **Art rights.** The reference image appears to be a screenshot from a game. Can it be
    used in a public repo, or should we commission or generate an original village
